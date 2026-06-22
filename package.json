@@ -1,0 +1,14 @@
+{
+  "name": "moom-app",
+  "version": "1.0.0",
+  "description": "A prototype messaging app with a centralized monitoring server.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  }
+}
