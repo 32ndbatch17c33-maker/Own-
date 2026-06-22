@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moom App</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: sans-serif; background: #eae6df; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .container { background: white; width: 100%; max-width: 420px; height: 600px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: flex; flex-direction: column; overflow: hidden; }
+        .header { background: #008069; color: white; padding: 15px; text-align: center; font-size: 1.2rem; font-weight: bold; }
+        .view { flex: 1; display: flex; flex-direction: column; padding: 20px; }
+        .hidden { display: none !important; }
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; }
+        button { width: 100%; padding: 12px; margin: 6px 0; border: none; border-radius: 6px; font-weight: bold; font-size: 1rem; cursor: pointer; }
+        .btn-login { background: #00a884; color: white; }
+        .btn-register { background: #e3e3e3; color: #333; }
+        #chat-box { flex: 1; border: 1px solid #e1e1e1; border-radius: 8px; background: #efeae2; overflow-y: auto; padding: 15px; margin: 10px 0; }
+        .msg { margin: 6px 0; padding: 8px 12px; border-radius: 8px; width: fit-content; max-width: 75%; font-size: 0.95rem; word-wrap: break-word; }
+        .sent { background: #d9fdd3; margin-left: auto; }
+        .received { background: white; }
+        .chat-controls { display: flex; gap: 8px; }
+        .btn-send { background: #00a884; color: white; width: auto; padding: 0 20px; }
+        .error-msg { color: #ea0038; font-size: 0.9rem; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">Moom App 🌙</div>
+        <div id="auth-view" class="view">
+            <input type="text" id="username" placeholder="Choose Username">
+            <input type="password" id="password" placeholder="Password">
+            <button class="btn-login" onclick="handleAuth('/api/login')">Log In</button>
+            <button class="btn-register" onclick="handleAuth('/api/register')">Register</button>
+            <div id="auth-error" class="error-msg"></div>
+        </div>
+        <div id="chat-view" class="view hidden">
+            <div style="margin-bottom: 5px;">Logged in as: <span id="user-display" style="color:#008069; font-weight:bold;"></span></div>
+            <input type="text" id="recipient" placeholder="Recipient's username...">
+            <div id="chat-box"></div>
+            <div class="chat-controls">
+                <input type="text" id="message-text" placeholder="Type a message...">
+                <button class="btn-send" onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        const socket = io();
+        let activeUser = "";
+
+        async function handleAuth(endpoint) {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('auth-error');
+            errorDiv.innerText = "";
+
+            if (!username || !password) return errorDiv.innerText = "All fields required.";
+            
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await response.json();
+
+                if (data.error) {
+                    errorDiv.innerText = data.error;
+                } else {
+                    if (endpoint === '/api/register') {
+                        alert("Account created!");
+                    } else {
+                        activeUser = data.username;
+                        document.getElementById('user-display').innerText = activeUser;
+                        document.getElementById('auth-view').classList.add('hidden');
+                        document.getElementById('chat-view').classList.remove('hidden');
+                        socket.emit('register-session', activeUser);
+                    }
+                }
+            } catch (err) { errorDiv.innerText = "Connection error."; }
+        }
+
+        function sendMessage() {
+            const recipient = document.getElementById('recipient').value;
+            const text = document.getElementById('message-text').value;
+            if(!recipient || !text) return;
+            socket.emit('private-message', { recipient, text });
+            document.getElementById('message-text').value = "";
+        }
+
+        socket.on('receive-message', (msg) => {
+            const chatBox = document.getElementById('chat-box');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = msg.sender === activeUser ? "msg sent" : "msg received";
+            msgDiv.innerText = msg.sender === activeUser ? `To ${msg.recipient}: ${msg.text}` : `${msg.sender}: ${msg.text}`;
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        });
+    </script>
+</body>
+</html>
